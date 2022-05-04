@@ -1,0 +1,34 @@
+## Build Image
+FROM golang:1.18-bullseye as build
+
+ARG OSMOSIS_VERSION="v7.2.0"
+ARG COSMOVISOR_VERSION="v1.0.0"
+
+WORKDIR /osmosis
+RUN git clone -b ${OSMOSIS_VERSION} https://github.com/osmosis-labs/osmosis .
+
+# From https://github.com/CosmWasm/wasmd/blob/master/Dockerfile
+# For more details see https://github.com/CosmWasm/wasmvm#builds-of-libwasmvm 
+ADD https://github.com/CosmWasm/wasmvm/releases/download/v1.0.0-beta7/libwasmvm_muslc.a /lib/libwasmvm_muslc.a
+RUN sha256sum /lib/libwasmvm_muslc.a | grep d0152067a5609bfdfb3f0d5d6c0f2760f79d5f2cd7fd8513cafa9932d22eb350
+RUN BUILD_TAGS=muslc make build
+
+RUN go install github.com/cosmos/cosmos-sdk/cosmovisor/cmd/cosmovisor@${COSMOVISOR_VERSION}
+
+RUN mv ./build/osmosisd /bin/osmosisd
+
+FROM ubuntu:21.10 as runner
+
+COPY --from=build /bin/osmosisd /bin/osmosisd
+COPY --from=build /go/bin/cosmovisor /bin/cosmovisor
+
+WORKDIR /root
+
+COPY scripts/osmosis/run-osmosisd.sh .
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt update
+RUN apt upgrade -y
+RUN apt-get install sudo wget curl liblz4-tool aria2 jq -y
+
+ENTRYPOINT [ "./run-osmosisd.sh" ]
