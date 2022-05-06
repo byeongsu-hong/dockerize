@@ -12,4 +12,7 @@ sed -i "s/indexer = \"kv\"/indexer = \"null\"/g" "$OSMOSIS_HOME"/config/config.t
 # enable prometheus
 sed -i "s/prometheus = false/prometheus = true/g" "$OSMOSIS_HOME"/config/config.toml
 
+# prune everything
+sed -i "s/pruning = \"custom\"/pruning = \"everything\"/g" "$OSMOSIS_HOME"/config/app.toml
+
 osmosisd start --home "$OSMOSIS_HOME"
